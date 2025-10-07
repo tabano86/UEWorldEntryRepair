@@ -1,13 +1,19 @@
-﻿param([string[]]$Paths,[switch]$DryRun)
-foreach ($p in $Paths) {
-  if (Test-Path $p) {
-    try {
-      if (-not $DryRun) { Remove-Item -Recurse -Force $p -ErrorAction Stop }
-      & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") "Delete $p" "OK" $script:LogFile
-    } catch {
-      & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") ("Delete {0} - {1}" -f $p, $_.Exception.Message) "WARN" $script:LogFile
+﻿function Clear-Paths {
+    param(
+        [string[]]$Paths,
+        [switch]$DryRun,
+        [string]$LogFile
+    )
+    foreach ($p in $Paths) {
+        if (Test-Path $p) {
+            try {
+                if (-not $DryRun) { Remove-Item -Recurse -Force $p -ErrorAction Stop }
+                Write-ActionLog -Message "Delete $p" -Level OK -LogFile $LogFile
+            } catch {
+                Write-ActionLog -Message ("Delete {0} - {1}" -f $p, $_.Exception.Message) -Level WARN -LogFile $LogFile
+            }
+        } else {
+            Write-ActionLog -Message "Delete $p - not found" -Level WARN -LogFile $LogFile
+        }
     }
-  } else {
-    & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") "Delete $p - not found" "WARN" $script:LogFile
-  }
 }

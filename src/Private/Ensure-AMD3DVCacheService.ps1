@@ -1,13 +1,15 @@
-﻿param($Name)
-try {
-  $s = Get-Service -Name $Name -ErrorAction Stop
-  if ($s.Status -ne "Running") {
-    sc.exe config $Name start= auto | Out-Null
-    Start-Service $Name -ErrorAction SilentlyContinue
-    & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") "$Name started" "OK" $script:LogFile
-  } else {
-    & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") "$Name running" "OK" $script:LogFile
-  }
-} catch {
-  & (Join-Path $PSScriptRoot "Write-ActionLog.ps1") "$Name not present" "WARN" $script:LogFile
+﻿function Ensure-AMD3DVCacheService {
+    param([string]$Name,[string]$LogFile)
+    try {
+        $s = Get-Service -Name $Name -ErrorAction Stop
+        if ($s.Status -ne 'Running') {
+            sc.exe config $Name start= auto | Out-Null
+            Start-Service $Name -ErrorAction SilentlyContinue
+            Write-ActionLog -Message "$Name started" -Level OK -LogFile $LogFile
+        } else {
+            Write-ActionLog -Message "$Name running" -Level OK -LogFile $LogFile
+        }
+    } catch {
+        Write-ActionLog -Message "$Name not present" -Level WARN -LogFile $LogFile
+    }
 }
