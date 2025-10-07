@@ -6,10 +6,12 @@
         [ValidateSet('Full','Lite','Revert','Custom')][string]$Mode='Full',
         [switch]$QuarantineSaves,
         [switch]$PurgeNvidiaCaches,
-    # deprecated blunt flag (kept for compat); prefer OverlayMode
+    # legacy switch (still honored): sets OverlayMode=Aggressive if you pass it
         [switch]$StopOverlays,
         [ValidateSet('None','HelpersOnly','Aggressive')][string]$OverlayMode = 'HelpersOnly',
         [string[]]$OverlayAllow,
+    # game-file-only tweaks (no app killing)
+        [ValidateSet('None','NoRT','UltraSafe')][string]$CompatProfile = 'None',
         [switch]$NoBalancedPlan,
         [switch]$NoAMDServiceCheck,
         [switch]$DryRun,
@@ -37,21 +39,16 @@
     Write-ActionLog -Message ("Target {0}" -f $GameName) -Level STEP -LogFile $script:LogFile
     Write-ActionLog -Message $ini -Level OK -LogFile $script:LogFile
 
-    # Mode presets (less destructive defaults)
     if ($Mode -eq 'Full') {
         $QuarantineSaves   = $true
         $PurgeNvidiaCaches = $true
         if (-not $PSBoundParameters.ContainsKey('OverlayMode') -and -not $PSBoundParameters.ContainsKey('StopOverlays')) {
-            # Default to HelpersOnly for Full; old -StopOverlays flips to Aggressive below
             $OverlayMode = 'HelpersOnly'
         }
     }
+    if ($StopOverlays -and -not $PSBoundParameters.ContainsKey('OverlayMode')) { $OverlayMode = 'Aggressive' }
 
-    # Back-compat: if user passed -StopOverlays (legacy), treat as Aggressive unless OverlayMode explicitly set
-    if ($StopOverlays -and -not $PSBoundParameters.ContainsKey('OverlayMode')) {
-        $OverlayMode = 'Aggressive'
-    }
-
+    # Base triage keys (crash-prone features)
     $keys = @(
         'r.NGX.DLSS.Enable=0',
         'r.NGX.DLSSG.Enable=0',
@@ -59,17 +56,29 @@
         'r.FidelityFX.FSR3=0'
     )
 
+    # Compat profiles - conservative, game-file-only
+    $compat = @()
+    switch ($CompatProfile) {
+        'NoRT'      { $compat += 'r.RayTracing=0'; $compat += 'r.Lumen.HardwareRayTracing=0' }
+        'UltraSafe' { $compat += 'r.RayTracing=0'; $compat += 'r.Lumen.HardwareRayTracing=0'; $compat += 'r.AsyncCompute=0' }
+        default     { }
+    }
+    $allKeys = $keys + $compat
+
     $bak = "$ini.bak.$ts"
     if (Test-Path $ini) { Copy-Item $ini $bak -Force; Write-ActionLog -Message ("Backup {0}" -f $bak) -Level OK -LogFile $script:LogFile }
 
     if ($Mode -eq 'Revert') {
         Write-ActionLog -Message 'Revert overrides' -Level STEP -LogFile $script:LogFile
-        Set-IniValues -Path $ini -Section 'SystemSettings' -KeyValues $keys -Remove
+        Set-IniValues -Path $ini -Section 'SystemSettings' -KeyValues $allKeys -Remove
         Write-ActionLog -Message 'Overrides removed' -Level OK -LogFile $script:LogFile
     } else {
         Write-ActionLog -Message 'Apply overrides' -Level STEP -LogFile $script:LogFile
-        Set-IniValues -Path $ini -Section 'SystemSettings' -KeyValues $keys
+        Set-IniValues -Path $ini -Section 'SystemSettings' -KeyValues $allKeys
         Write-ActionLog -Message 'DLSS/FG/FSR3 disabled' -Level OK -LogFile $script:LogFile
+        if ($CompatProfile -ne 'None') {
+            Write-ActionLog -Message ("CompatProfile applied: {0}" -f $CompatProfile) -Level OK -LogFile $script:LogFile
+        }
     }
 
     Write-ActionLog -Message 'Purge UE caches' -Level STEP -LogFile $script:LogFile
@@ -95,7 +104,8 @@
         $dx = Join-Path $env:LOCALAPPDATA 'NVIDIA\DXCache'
         $gl = Join-Path $env:LOCALAPPDATA 'NVIDIA\GLCache'
         $nv = 'C:\ProgramData\NVIDIA Corporation\NV_Cache'
-        Clear-Paths -Paths @($dx,$gl,$nv) -DryRun:$DryRun -LogFile $script:LogFile
+        # Soft purge: skip locked .nvph files instead of warning the user to death
+        Clear-Paths -Paths @($dx,$gl,$nv) -DryRun:$DryRun -LogFile $script:LogFile -ExcludeExtensions @('.nvph') -SkipLocked
     }
 
     if (-not $NoBalancedPlan) {
@@ -130,6 +140,7 @@
             PurgeNvidiaCaches = [bool]$PurgeNvidiaCaches
             OverlayMode       = $OverlayMode
             OverlayAllow      = $OverlayAllow
+            CompatProfile     = $CompatProfile
             NoBalancedPlan    = [bool]$NoBalancedPlan
             NoAMDServiceCheck = [bool]$NoAMDServiceCheck
             DryRun            = [bool]$DryRun

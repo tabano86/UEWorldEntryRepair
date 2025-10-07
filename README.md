@@ -1,34 +1,28 @@
 # UEWorldEntryRepair
-Unreal world-entry crash repair. Disables DLSS/Frame Gen/FSR3 at the config level, purges UE/NVIDIA caches, quarantines saves, enforces sensible Windows gaming settings, and emits a JSON report.
 
-## Quick Start
-1) Extract
-2) Right-click `tools\Run-UEWorldEntryRepair.ps1` → Run with PowerShell
-3) Example:
-```
-powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Args -Mode Full -GameName "Borderlands 4"
+One-liner (Borderlands 4, keep Discord, kill overlay helpers only):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -GameName "Borderlands 4" -OverlayMode HelpersOnly`
 ```
 
-## Commands
-- `Repair-UEWorldEntry`
-- `Get-UEGames`
+# Revert:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Revert -GameName "Borderlands 4"
+```
+# List detected UE games:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -ListGames
+```
+# Point at a specific Engine.ini (optional):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -EngineIniPath "C:\Users\<you>\Documents\My Games\Borderlands 4\Saved\Config\Windows\Engine.ini" -OverlayMode HelpersOnly
+```
 
-## Modes
-- Full
-- Lite
-- Revert
-- Custom
-
-## Flags
-- `-GameName "Borderlands 4"` or `-EngineIniPath "C:\Users\...\Engine.ini"`
-- `-QuarantineSaves`
-- `-PurgeNvidiaCaches`
-- `-StopOverlays`
-- `-NoBalancedPlan`
-- `-NoAMDServiceCheck`
-- `-DryRun`
-- `-ListGames`
-
-## Output
-- Log: `%TEMP%\UEWorldEntryRepair_*.log`
-- Report JSON: `Documents\My Games\<Game>\Saved\ueworldentry_backup_*\UEWorldEntryRepair_*.json`
+# Optional game-file compatibility profile (no app killing):
+#   None | NoRT | UltraSafe
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -GameName "Borderlands 4" -CompatProfile NoRT
+```
+# Logs / Report:
+#   Log:    %TEMP%\UEWorldEntryRepair_<timestamp>.log
+#   Report: Documents\My Games\<Game>\Saved\ueworldentry_backup_<timestamp>\UEWorldEntryRepair_<timestamp>.json
