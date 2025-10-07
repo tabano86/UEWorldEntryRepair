@@ -2,7 +2,7 @@
 
 One-liner (Borderlands 4, keep Discord, kill overlay helpers only):
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -GameName "Borderlands 4" -OverlayMode HelpersOnly`
+powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -GameName "Borderlands 4" -OverlayMode HelpersOnly
 ```
 
 # Revert:
@@ -23,6 +23,3 @@ powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mod
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\Run-UEWorldEntryRepair.ps1 -Mode Full -GameName "Borderlands 4" -CompatProfile NoRT
 ```
-# Logs / Report:
-#   Log:    %TEMP%\UEWorldEntryRepair_<timestamp>.log
-#   Report: Documents\My Games\<Game>\Saved\ueworldentry_backup_<timestamp>\UEWorldEntryRepair_<timestamp>.json
