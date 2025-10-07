@@ -1,4 +1,4 @@
-function Repair-UEWorldEntry{
+﻿function Repair-UEWorldEntry{
   [CmdletBinding(SupportsShouldProcess=$true)]
   param(
     [string]$GameName,
@@ -55,7 +55,7 @@ function Repair-UEWorldEntry{
     if(Test-Path $saves){
       $dest=Join-Path $backupDir 'SaveGames'
       if(-not $DryRun){Move-Item $saves $dest -Force}
-      & $log "$saves → $dest" 'OK'
+      & $log "$saves â†’ $dest" 'OK'
     } else {
       & $log 'SaveGames not found' 'WARN'
     }
