@@ -6,7 +6,10 @@
         [ValidateSet('Full','Lite','Revert','Custom')][string]$Mode='Full',
         [switch]$QuarantineSaves,
         [switch]$PurgeNvidiaCaches,
+    # deprecated blunt flag (kept for compat); prefer OverlayMode
         [switch]$StopOverlays,
+        [ValidateSet('None','HelpersOnly','Aggressive')][string]$OverlayMode = 'HelpersOnly',
+        [string[]]$OverlayAllow,
         [switch]$NoBalancedPlan,
         [switch]$NoAMDServiceCheck,
         [switch]$DryRun,
@@ -34,7 +37,20 @@
     Write-ActionLog -Message ("Target {0}" -f $GameName) -Level STEP -LogFile $script:LogFile
     Write-ActionLog -Message $ini -Level OK -LogFile $script:LogFile
 
-    if ($Mode -eq 'Full') { $QuarantineSaves=$true; $PurgeNvidiaCaches=$true; $StopOverlays=$true }
+    # Mode presets (less destructive defaults)
+    if ($Mode -eq 'Full') {
+        $QuarantineSaves   = $true
+        $PurgeNvidiaCaches = $true
+        if (-not $PSBoundParameters.ContainsKey('OverlayMode') -and -not $PSBoundParameters.ContainsKey('StopOverlays')) {
+            # Default to HelpersOnly for Full; old -StopOverlays flips to Aggressive below
+            $OverlayMode = 'HelpersOnly'
+        }
+    }
+
+    # Back-compat: if user passed -StopOverlays (legacy), treat as Aggressive unless OverlayMode explicitly set
+    if ($StopOverlays -and -not $PSBoundParameters.ContainsKey('OverlayMode')) {
+        $OverlayMode = 'Aggressive'
+    }
 
     $keys = @(
         'r.NGX.DLSS.Enable=0',
@@ -95,12 +111,12 @@
         if (-not $DryRun) { Ensure-AMD3DVCacheService -Name 'amd3dvcacheSvc' -LogFile $script:LogFile } else { Write-ActionLog -Message 'Service unchecked (DryRun)' -Level WARN -LogFile $script:LogFile }
     }
 
-    if ($StopOverlays) {
-        Write-ActionLog -Message 'Stop overlays' -Level STEP -LogFile $script:LogFile
-        if (-not $DryRun) { Stop-GameOverlays -Names @('NVIDIA Share','NVIDIA Overlay','Discord','steam') -LogFile $script:LogFile } else { Write-ActionLog -Message 'Overlays untouched (DryRun)' -Level WARN -LogFile $script:LogFile }
+    if ($OverlayMode -ne 'None') {
+        Write-ActionLog -Message ("Stop overlays (Mode={0})" -f $OverlayMode) -Level STEP -LogFile $script:LogFile
+        if (-not $DryRun) { Stop-GameOverlays -Mode $OverlayMode -Allow $OverlayAllow -LogFile $script:LogFile } else { Write-ActionLog -Message 'Overlays untouched (DryRun)' -Level WARN -LogFile $script:LogFile }
     }
 
-    $sys = Get-SystemSnapshot
+    $sys    = Get-SystemSnapshot
     $report = Join-Path $backupDir ("UEWorldEntryRepair_" + $ts + ".json")
     $summary = [pscustomobject]@{
         Timestamp = $ts
@@ -112,7 +128,8 @@
         Flags     = [pscustomobject]@{
             QuarantineSaves   = [bool]$QuarantineSaves
             PurgeNvidiaCaches = [bool]$PurgeNvidiaCaches
-            StopOverlays      = [bool]$StopOverlays
+            OverlayMode       = $OverlayMode
+            OverlayAllow      = $OverlayAllow
             NoBalancedPlan    = [bool]$NoBalancedPlan
             NoAMDServiceCheck = [bool]$NoAMDServiceCheck
             DryRun            = [bool]$DryRun
@@ -123,7 +140,7 @@
     $summary | ConvertTo-Json -Depth 6 | Out-File -FilePath $report -Encoding utf8
 
     [pscustomobject]@{
-        Game   = $GameName
+        Game      = $GameName
         EngineIni = $ini
         SavedRoot = $savedRoot
         Backup    = $backupDir
